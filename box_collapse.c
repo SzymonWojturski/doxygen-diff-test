@@ -358,7 +358,7 @@ WfcResult wfc(int n, int pct, unsigned int seed) {
     free(wave);
     return (WfcResult){
         .matrix = matrix,
-        .entropy = 0.0
+        .entropy = matrix_entropy(matrix, n)
     };
 }
 
