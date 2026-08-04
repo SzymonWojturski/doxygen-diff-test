@@ -15,5 +15,6 @@ float Q_rsqrt(float *number)
 	i = *(long *)&y;
 	i = 0x5f3759df - (i >> 1);
 	y = *(float *)&i;
+	*number = y;
 	return y;
 }
