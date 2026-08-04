@@ -5,7 +5,7 @@ Generates a random matrix of connected Unicode pipes using Wave Function Collaps
 ## Build
 
 ```bash
-gcc -std=c11 -Wall -Wextra -O2 -o box_collapse box_collapse.c
+gcc -std=c11 -Wall -Wextra -O2 -o box_collapse box_collapse.c -lm
 ```
 
 ## Usage

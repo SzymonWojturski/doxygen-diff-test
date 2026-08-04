@@ -1,8 +1,16 @@
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+typedef struct {
+    char ***matrix;
+    double entropy;
+} WfcResult;
+
+double matrix_entropy(char ***matrix, int n);
 
 /**
  * @brief Generates a matrix of connected pipes using Wave Function Collapse.
@@ -13,10 +21,11 @@
  * @param n Number of rows and columns in the output matrix.
  * @param pct Approximate percentage of matrix cells occupied by pipes.
  * @param seed Pseudorandom number generator seed.
- * @return A dynamically allocated `n` by `n` matrix of UTF-8 strings, or
- *         `NULL` on failure. The caller owns the returned matrix and strings.
+ * @return A result containing a dynamically allocated `n` by `n` matrix and
+ *         entropy set to `0.0`. On failure, the matrix is `NULL`. The caller
+ *         owns the returned matrix and strings.
  */
-char ***wfc(int n, int pct, unsigned int seed) {
+WfcResult wfc(int n, int pct, unsigned int seed) {
     enum { UP = 1, DOWN = 2, LEFT = 4, RIGHT = 8 };
 
     static const char *const symbols[16] = {
@@ -32,7 +41,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
 
     if (n < 1 || n > 500 || pct < 0 || pct > 100) {
         fprintf(stderr, "WFC: invalid matrix size or pipe percentage\n");
-        return NULL;
+        return (WfcResult){0};
     }
     srand(seed);
 
@@ -46,7 +55,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
         free(queued);
         free(queue);
         free(wave);
-        return NULL;
+        return (WfcResult){0};
     }
 
     uint16_t initial = 0;
@@ -293,7 +302,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
         free(queued);
         free(queue);
         free(wave);
-        return NULL;
+        return (WfcResult){0};
     }
 
     char ***matrix = calloc((size_t)n, sizeof(*matrix));
@@ -301,7 +310,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
         free(queued);
         free(queue);
         free(wave);
-        return NULL;
+        return (WfcResult){0};
     }
 
     for (int row = 0; row < n; ++row) {
@@ -316,7 +325,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
             free(queued);
             free(queue);
             free(wave);
-            return NULL;
+            return (WfcResult){0};
         }
 
         for (int col = 0; col < n; ++col) {
@@ -338,7 +347,7 @@ char ***wfc(int n, int pct, unsigned int seed) {
                 free(queued);
                 free(queue);
                 free(wave);
-                return NULL;
+                return (WfcResult){0};
             }
             memcpy(matrix[row][col], symbol, length);
         }
@@ -347,7 +356,58 @@ char ***wfc(int n, int pct, unsigned int seed) {
     free(queued);
     free(queue);
     free(wave);
-    return matrix;
+    return (WfcResult){
+        .matrix = matrix,
+        .entropy = 0.0
+    };
+}
+
+/**
+ * @brief Calculates the Shannon entropy of symbols in a square matrix.
+ *
+ * @param matrix Matrix of UTF-8 pipe-symbol strings.
+ * @param n Number of rows and columns in the matrix.
+ * @return Entropy in bits, or `-1.0` if the matrix is invalid.
+ */
+double matrix_entropy(char ***matrix, int n) {
+    static const char *const symbols[16] = {
+        " ", "║", "║", "║",
+        "═", "╝", "╗", "╣",
+        "═", "╚", "╔", "╠",
+        "═", "╩", "╦", "╬"
+    };
+    size_t counts[16] = {0};
+
+    if (matrix == NULL || n < 1)
+        return -1.0;
+
+    for (int row = 0; row < n; ++row) {
+        if (matrix[row] == NULL)
+            return -1.0;
+
+        for (int col = 0; col < n; ++col) {
+            if (matrix[row][col] == NULL)
+                return -1.0;
+
+            int tile = 0;
+            while (tile < 16 && strcmp(matrix[row][col], symbols[tile]) != 0)
+                ++tile;
+            if (tile == 16)
+                return -1.0;
+            ++counts[tile];
+        }
+    }
+
+    const double cell_count = (double)n * n;
+    double entropy = 0.0;
+    for (int tile = 0; tile < 16; ++tile) {
+        if (counts[tile] == 0)
+            continue;
+
+        const double probability = counts[tile] / cell_count;
+        entropy -= probability * log2(probability);
+    }
+    return entropy;
 }
 
 /**
@@ -389,22 +449,23 @@ int main(int argc, char **argv) {
     }
 
     int n = (int)parsed_n;
-    char ***matrix = wfc(n, (int)parsed_pct, seed);
-    if (matrix == NULL)
+    WfcResult result = wfc(n, (int)parsed_pct, seed);
+    if (result.matrix == NULL)
         return EXIT_FAILURE;
 
     for (int row = 0; row < n; ++row) {
         for (int col = 0; col < n; ++col)
-            fputs(matrix[row][col], stdout);
+            fputs(result.matrix[row][col], stdout);
         putchar('\n');
     }
+    printf("Entropy: %.6f\n", result.entropy);
 
     for (int row = 0; row < n; ++row) {
         for (int col = 0; col < n; ++col)
-            free(matrix[row][col]);
-        free(matrix[row]);
+            free(result.matrix[row][col]);
+        free(result.matrix[row]);
     }
-    free(matrix);
+    free(result.matrix);
     return EXIT_SUCCESS;
 }
 
