@@ -1,0 +1,14 @@
+[project]
+name = "doxygen-diff-context"
+version = "0.1.0"
+description = "Extract changed C functions and Doxygen comments from GitHub pull requests"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "pydantic>=2",
+    "tree-sitter",
+    "tree-sitter-c",
+]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
